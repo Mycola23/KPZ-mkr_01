@@ -24,7 +24,7 @@ interface NodeState {
 
 class VisibleState implements NodeState {
     render(node: LightNode): string {
-        return node.getOuterHTMLInternal();
+        return node.getOuterHTML();
     }
 }
 
@@ -45,6 +45,29 @@ class TagCounterVisitor implements NodeVisitor {
     visitText(node: LightTextNode) {}
     visitElement(node: LightElementNode) {
         this.count++;
+    }
+}
+// =========== command  ===========================================
+
+interface Command {
+    execute(): void;
+    undo(): void;
+}
+
+class AddClassCommand implements Command {
+    constructor(
+        private element: LightElementNode,
+        private className: string,
+    ) {}
+
+    execute(): void {
+        if (!this.element.classes.includes(this.className)) {
+            this.element.classes.push(this.className);
+        }
+    }
+
+    undo(): void {
+        this.element.classes = this.element.classes.filter(c => c !== this.className);
     }
 }
 
@@ -71,7 +94,7 @@ abstract class LightNode {
     }
 
     abstract getInnerHTML(): string;
-    abstract getOuterHTMLInternal(): string;
+    abstract getOuterHTML(): string;
 
     public addEventListener(event: string, callback: Function): void {
         if (!this.eventListeners.has(event)) this.eventListeners.set(event, []);
@@ -99,7 +122,7 @@ class LightTextNode extends LightNode {
 
     protected onBeforeRender(): void {}
 
-    getOuterHTMLInternal() {
+    getOuterHTML() {
         return this.text;
     }
     getInnerHTML() {
@@ -139,7 +162,7 @@ class LightElementNode extends LightNode {
         return this.children.map(c => c.render()).join('');
     }
 
-    getOuterHTMLInternal(): string {
+    getOuterHTML(): string {
         const classAttr = this.classes.length ? ` class="${this.classes.join(' ')}"` : '';
         if (this.isSelfClosing) return `<${this.tagName}${classAttr}/>`;
         return `<${this.tagName}${classAttr}>${this.getInnerHTML()}</${this.tagName}>`;
@@ -165,7 +188,7 @@ class LightImageNode extends LightElementNode {
         this.loadStrategy = href.startsWith('http') ? new NetworkImageLoadStrategy() : new FileSystemImageLoadStrategy();
         this.loadStrategy.load(this.href);
     }
-    getOuterHTMLInternal(): string {
+    getOuterHTML(): string {
         return `<img src="${this.href}" />`;
     }
 }
@@ -200,6 +223,15 @@ function main() {
     console.log(`всього тегів у документі: ${counter.count}`);
     console.log('\n');
 
+    console.log('=== check Command ===');
+    const addClass = new AddClassCommand(div, 'active-style');
+    addClass.execute();
+    console.log('after execute:', div.getOuterHTML());
+    addClass.undo();
+    console.log('after undo:', div.getOuterHTML());
+
+    console.log('\nfinal render: ');
+    div.setState(new VisibleState());
     console.log(body.render());
 }
 main();
