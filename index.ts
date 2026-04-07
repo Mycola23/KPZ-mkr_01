@@ -16,9 +16,28 @@ class FileSystemImageLoadStrategy implements ImageLoadStrategy {
     }
 }
 
-// template
+// ===============  state ============================
+interface NodeState {
+    render(node: LightNode): string;
+}
 
+class VisibleState implements NodeState {
+    render(node: LightNode): string {
+        return node.getOuterHTMLInternal();
+    }
+}
+
+class HiddenState implements NodeState {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    render(node: LightNode): string {
+        return '';
+    }
+}
+
+// template + iterator
 abstract class LightNode {
+    protected state: NodeState = new VisibleState();
+
     private eventListeners: Map<string, Function[]> = new Map();
     constructor() {
         setTimeout(() => this.onCreated(), 0);
@@ -29,7 +48,11 @@ abstract class LightNode {
 
     public render(): string {
         this.onBeforeRender();
-        return this.getOuterHTMLInternal();
+        return this.state.render(this);
+    }
+
+    public setState(state: NodeState) {
+        this.state = state;
     }
 
     abstract getInnerHTML(): string;
@@ -135,13 +158,18 @@ function main() {
     div.addChild(text);
     div.addChild(img);
 
-    console.log('=== check iterator ===');
+    console.log('\n=== check iterator ===');
     for (const node of body.getIterator()) {
         if (node instanceof LightElementNode) {
             console.log(`Founded tag: <${node.tagName}>`);
         }
     }
 
+    console.log('\n=== check State ===');
+    console.log('visible div:', div.render());
+    div.setState(new HiddenState());
+    console.log('hidden div(must be nothing):', div.render());
+    console.log('\n');
     console.log(body.render());
 }
 main();
