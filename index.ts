@@ -43,6 +43,10 @@ abstract class LightNode {
     public triggerEvent(event: string, data?: any): void {
         this.eventListeners.get(event)?.forEach(cb => cb(data));
     }
+
+    public *getIterator(): IterableIterator<LightNode> {
+        yield this;
+    }
 }
 
 class LightTextNode extends LightNode {
@@ -99,6 +103,13 @@ class LightElementNode extends LightNode {
         if (this.isSelfClosing) return `<${this.tagName}${classAttr}/>`;
         return `<${this.tagName}${classAttr}>${this.getInnerHTML()}</${this.tagName}>`;
     }
+
+    public *getIterator(): IterableIterator<LightNode> {
+        yield this;
+        for (const child of this.children) {
+            yield* child.getIterator();
+        }
+    }
 }
 
 class LightImageNode extends LightElementNode {
@@ -123,6 +134,13 @@ function main() {
     body.addChild(div);
     div.addChild(text);
     div.addChild(img);
+
+    console.log('=== check iterator ===');
+    for (const node of body.getIterator()) {
+        if (node instanceof LightElementNode) {
+            console.log(`Founded tag: <${node.tagName}>`);
+        }
+    }
 
     console.log(body.render());
 }
