@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-function-type */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface ImageLoadStrategy {
@@ -28,14 +29,28 @@ class VisibleState implements NodeState {
 }
 
 class HiddenState implements NodeState {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     render(node: LightNode): string {
         return '';
+    }
+}
+// ============ visitor ======================================
+
+interface NodeVisitor {
+    visitText(node: LightTextNode): void;
+    visitElement(node: LightElementNode): void;
+}
+
+class TagCounterVisitor implements NodeVisitor {
+    public count = 0;
+    visitText(node: LightTextNode) {}
+    visitElement(node: LightElementNode) {
+        this.count++;
     }
 }
 
 // template + iterator
 abstract class LightNode {
+    abstract accept(visitor: NodeVisitor): void;
     protected state: NodeState = new VisibleState();
 
     private eventListeners: Map<string, Function[]> = new Map();
@@ -90,6 +105,9 @@ class LightTextNode extends LightNode {
     getInnerHTML() {
         return this.text;
     }
+    accept(visitor: NodeVisitor) {
+        visitor.visitText(this);
+    }
 }
 
 class LightElementNode extends LightNode {
@@ -133,6 +151,11 @@ class LightElementNode extends LightNode {
             yield* child.getIterator();
         }
     }
+
+    accept(visitor: NodeVisitor) {
+        visitor.visitElement(this);
+        this.children.forEach(c => c.accept(visitor));
+    }
 }
 
 class LightImageNode extends LightElementNode {
@@ -170,6 +193,13 @@ function main() {
     div.setState(new HiddenState());
     console.log('hidden div(must be nothing):', div.render());
     console.log('\n');
+
+    console.log('=== check visitor ===');
+    const counter = new TagCounterVisitor();
+    body.accept(counter);
+    console.log(`всього тегів у документі: ${counter.count}`);
+    console.log('\n');
+
     console.log(body.render());
 }
 main();
